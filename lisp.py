@@ -5,19 +5,29 @@ from functools import reduce
 from lisp_errors import LispError
 
 
-class Namespace(dict):
+class Namespace:
     def __init__(self, previous = None):
         self.prev = previous if previous else {}
+        self.nmspace = {}
     def __getitem__(self, key):
-        return self[key] if key in self else self.prev[key]
+        return self.nmspace[key] if key in self.nmspace else self.prev[key]
+    def __setitem__(self, key, value):
+        self.nmspace[key] = value
+    def __delitem__(self, key):
+        del self.nmspace[key]
     def __contains__(self, item):
-        return item in self or item in self.prev
+        return item in self.nmspace or item in self.prev
+    def __repr__(self):
+        return repr(self.nmspace)
 
 
 # global namespace (toplevel)
 _Namespace = {}
 # namespace for functions
 _Fvals = {}
+
+
+##################################################
 
 
 # useful predicates
@@ -34,41 +44,17 @@ def listp(obj):
     return nilp(obj) or consp(obj)
 
 
+####################################################
+
+def list_iterator(cons):
+    while cons is not nil:
+        yield cons.car
+        cons = cons.cdr
+
+
 # helper function
 def _to_list(*args):
     return reduce(lambda x, y: Cons(y, x), reversed(args), nil)
-
-
-# lisp builtins functions
-def lsp_set(sym, val, namespace):
-    return sym.bind(val, namespace)
-
-def rplaca(cons, o):
-    if not consp(cons):
-        raise LispError(repr(cons) + ' is not a cons')
-    cons.car = o
-    return cons
-
-def rplacd(cons, o):
-    if not consp(cons):
-        raise LispError(repr(cons) + ' is not a cons')
-    cons.cdr = o
-    return cons
-
-# builtins macros
-## impl : (set (quote a) v)
-def setq(o):
-    return _to_list(*[Symbol('set'), _to_list(*[Symbol('quote'), o.car]), o.cdr.car])
-
-## impl : (setq a (cons e a))
-def push(o):
-    return _to_list(*[Symbol('setq'), o.cdr.car, _to_list(*[Symbol('cons'), o.car, o.cdr.car])])
-
-## impl : (prog1 (car a) (setq a (cdr a)))
-def pop(o):
-    return _to_list(*[Symbol('prog1'),
-                    _to_list(*[Symbol('car'), o.car]),
-                    _to_list(*[Symbol('setq'), o.car, _to_list(*[Symbol('cdr'), o.car])])])
 
 
 # use closures for cleaner implementation of eval
@@ -97,6 +83,44 @@ def macro_eval(func):
             raise LispError(repr(err))
     return _eval
 
+
+
+###################################################
+
+# lisp builtins functions
+def lsp_set(sym, val, namespace):
+    return sym.bind(val, namespace)
+
+def rplaca(cons, o):
+    if not consp(cons):
+        raise LispError(repr(cons) + ' is not a cons')
+    cons.car = o
+    return cons
+
+def rplacd(cons, o):
+    if not consp(cons):
+        raise LispError(repr(cons) + ' is not a cons')
+    cons.cdr = o
+    return cons
+
+# builtins macros
+
+## impl : (set (quote a) v)
+def setq(o):
+    return _to_list(*[Symbol('set'), _to_list(*[Symbol('quote'), o.car]), o.cdr.car])
+
+## impl : (setq a (cons e a))
+def push(o):
+    return _to_list(*[Symbol('setq'), o.cdr.car, _to_list(*[Symbol('cons'), o.car, o.cdr.car])])
+
+## impl : (prog1 (car a) (setq a (cdr a)))
+def pop(o):
+    return _to_list(*[Symbol('prog1'),
+                    _to_list(*[Symbol('car'), o.car]),
+                    _to_list(*[Symbol('setq'), o.car, _to_list(*[Symbol('cdr'), o.car])])])
+
+
+
 def defun(cons, _):
     symbol, params, corps = cons.car.symbol, cons.cdr.car, cons.cdr.cdr.car
     def eval_user_func(obj, ns):
@@ -116,6 +140,7 @@ def defmacro(cons, _):
         return corps.eval(new_namespace).eval(ns)
     _Fvals[symbol] = eval_user_macro
     return cons.car
+
 
 #   /!\    WARNING   /!\
 # l'evaluation doit parfois se faire à l'interieur des fonction, et pas avant...
@@ -184,11 +209,7 @@ builtins = {
     'quote' : lambda o, _: o.car,
 }
 
-
-def list_iterator(cons):
-    while cons is not nil:
-        yield cons.car
-        cons = cons.cdr
+###################################################
 
 
 class Expr:
@@ -199,6 +220,7 @@ class Atom(Expr):
     def eval(self, namespace=None):
         "comportement par défaut : self-evaluating"
         return self
+
 
 class Symbol(Atom):
     used = {}
@@ -312,6 +334,13 @@ class Cons(Expr):
         # print(lst)
         return repr_aux(lst)
 
+
+# special class for representation
+class Quote(Cons):
+    def __repr__(self):
+        return "'" + repr(self.cdr.car)
+
+
 # (setq lst '((A (D) B) (E (H G) . I) E F))
 # (rplacd (cdr (car (cdr (car (cdr lst))))) (car (cdr lst)))
 
@@ -326,11 +355,6 @@ class Cons(Expr):
 
 # (setq lst '(I ((A) F H B . D) (D (G)) E))
 # (rplacd (car (car (cdr lst))) (cdr (cdr (cdr (car (cdr lst))))))
-
-# special class for representation
-class Quote(Cons):
-    def __repr__(self):
-        return "'" + repr(self.cdr.car)
 
 
 nil = Symbol('nil')
