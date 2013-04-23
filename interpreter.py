@@ -3,7 +3,7 @@
 
 
 from lisp_interpreter import lisp_interpreter
-from internal_repr import *
+from intermediate_repr import *
 
 #~ try:
     #~ from lisp_graph import plot_graph as plot

@@ -63,6 +63,8 @@ prgm14 = """
 (fibo 1)
 (fibo 5)
 (fibo 10)
+(fibo)
+(fibo 1 2)
 """
 
 prgm15 = """
