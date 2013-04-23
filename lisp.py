@@ -34,6 +34,9 @@ def consp(obj):
 def atom(obj):
     return isinstance(obj, Atom)
 
+def symbol(obj):
+    return isinstance(obj, Symbol)
+
 def listp(obj):
     return nilp(obj) or consp(obj)
 
@@ -184,6 +187,7 @@ builtins = {
     'set' : func_eval_in_namespace(lsp_set),  ## need namespace
     'rplaca' : func_eval(rplaca),
     'rplacd' : func_eval(rplacd),
+    'lambda' : make_func,
 # arithmetic
     '+' : func_eval(lambda a, b: Integer(a.nb + b.nb)),
     '-' : func_eval(lambda a, b: Integer(a.nb - b.nb)),
@@ -208,6 +212,20 @@ builtins = {
 #no-eval
     'quote' : lambda o, _: o.car,
 }
+
+def get_fval(obj, ns):
+    if symbol(obj):
+        sym = obj.symbol
+        if sym in builtins:
+            return builtins[sym]
+        elif sym in _Fvals:
+            return _Fvals[sym]
+        else:
+            raise LispError(sym + ' is not a function/macro')
+    elif consp(obj):
+        return obj.eval(ns)
+    else:
+        raise LispError(repr(obj) + ' is not a function/macro')
 
 ###################################################
 
@@ -289,20 +307,8 @@ class Cons(Expr):
         self.cdr = cdr
     #@deco_dbg
     def eval(self, namespace=_Namespace):
-        try:
-            sym = self.car.symbol
-            # print('symbol is', sym, _Fvals)
-        except Exception as err:
-            #raise err
-            raise LispError(repr(self.car) + ' is not a symbol' + '\n\t' + repr(err))
-        if sym in builtins:
-            foo = builtins[sym]
-            return foo(self.cdr, namespace)
-        elif sym in _Fvals:
-            foo = _Fvals[sym]
-            return foo(self.cdr, namespace)
-        else:
-            raise LispError(sym + ' is not a function/macro')
+        return get_fval(self.car, namespace)(self.cdr, namespace)
+
     # TODO : il faudrait gérer les listes circulaires
     def to_list(self):
         "convert to builtin list"
