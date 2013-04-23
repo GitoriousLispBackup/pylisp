@@ -100,6 +100,9 @@ def rplacd(cons, o):
     cons.cdr = o
     return cons
 
+def funcall(sym, *args, namespace):
+    return Cons(sym, _to_list(*args)).eval(namespace)
+
 # builtins macros
 
 ## impl : (set (quote a) v)
@@ -170,7 +173,7 @@ def _div(a, b):
         raise LispError('division by zero')
 
 
-# setf, eq, eql, char, length, let, lambda, cond...
+# setf, eq, eql, char, length, let, cond, mapcar, apply, funcall...
 builtins = {
     'car' : func_eval(lambda o: o.car),
     'cdr' : func_eval(lambda o: nil if nilp(o) else o.cdr),
@@ -187,7 +190,7 @@ builtins = {
     'set' : func_eval_in_namespace(lsp_set),  ## need namespace
     'rplaca' : func_eval(rplaca),
     'rplacd' : func_eval(rplacd),
-    'lambda' : make_func,
+    'funcall' : func_eval_in_namespace(funcall),  ## hack : use in_namespace
 # arithmetic
     '+' : func_eval(lambda a, b: Integer(a.nb + b.nb)),
     '-' : func_eval(lambda a, b: Integer(a.nb - b.nb)),
@@ -206,6 +209,7 @@ builtins = {
 #no-total evaluating
     'defun' : defun,
     'defmacro' : defmacro,
+    'lambda' : make_func,
     'if' : _if,
     'and' : _and,
     'or' : _or,
