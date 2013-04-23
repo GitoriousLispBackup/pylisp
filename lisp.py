@@ -5,20 +5,14 @@ from functools import reduce
 from lisp_errors import LispError
 
 
-class Namespace:
+class Namespace(dict):
     def __init__(self, previous = None):
         self.prev = previous if previous else {}
-        self.nmspace = {}
     def __getitem__(self, key):
-        return self.nmspace[key] if key in self.nmspace else self.prev[key]
-    def __setitem__(self, key, value):
-        self.nmspace[key] = value
-    def __delitem__(self, key):
-        del self.nmspace[key]
+        return super().__getitem__(key) if super().__contains__(key) else self.prev[key]
     def __contains__(self, item):
-        return item in self.nmspace or item in self.prev
-    def __repr__(self):
-        return repr(self.nmspace)
+        return super().__contains__(item) or item in self.prev
+
 
 
 # global namespace (toplevel)
@@ -119,16 +113,22 @@ def pop(o):
                     _to_list(*[Symbol('car'), o.car]),
                     _to_list(*[Symbol('setq'), o.car, _to_list(*[Symbol('cdr'), o.car])])])
 
-
-
-def defun(cons, _):
-    symbol, params, corps = cons.car.symbol, cons.cdr.car, cons.cdr.cdr.car
+def make_func(cons, _):
+    params, corps = list(list_iterator(cons.car)), cons.cdr.car
     def eval_user_func(obj, ns):
+        args = list(list_iterator(obj))
+        if len(params) != len(args):
+            raise LispError("nombre d'arguments incorrect")
         new_namespace = Namespace(ns)
-        for (k, v) in zip(list_iterator(params), list_iterator(obj)):
+        for (k, v) in zip(params, args):
             new_namespace[k.symbol] = v.eval(ns)
         return corps.eval(new_namespace)
-    _Fvals[symbol] = eval_user_func
+    return eval_user_func
+        
+
+def defun(cons, _):
+    symbol = cons.car.symbol
+    _Fvals[symbol] = make_func(cons.cdr, _)
     return cons.car
 
 def defmacro(cons, _):
@@ -167,7 +167,7 @@ def _div(a, b):
         raise LispError('division by zero')
 
 
-# setf, eq, eql, char, length, ...
+# setf, eq, eql, char, length, let, lambda, cond...
 builtins = {
     'car' : func_eval(lambda o: o.car),
     'cdr' : func_eval(lambda o: nil if nilp(o) else o.cdr),
@@ -291,8 +291,10 @@ class Cons(Expr):
     def eval(self, namespace=_Namespace):
         try:
             sym = self.car.symbol
-        except:
-            raise LispError(repr(self.car) + ' is not a symbol')
+            # print('symbol is', sym, _Fvals)
+        except Exception as err:
+            #raise err
+            raise LispError(repr(self.car) + ' is not a symbol' + '\n\t' + repr(err))
         if sym in builtins:
             foo = builtins[sym]
             return foo(self.cdr, namespace)
@@ -331,7 +333,6 @@ class Cons(Expr):
             else:
                 return repr(elt)
         lst = self.get_repr_list(visited)
-        # print(lst)
         return repr_aux(lst)
 
 
