@@ -40,7 +40,7 @@ def t_INT(t):
     return t
 
 def t_SYMBOL(t):
-    r'[^0-9 ",#()\'.][^ :",()\'\n]*'
+    r'[^0-9 ",#()\'.;][^ :;",()\'\n]*'
     t.type = reserved.get(t.value, 'SYMBOL')    # Check for reserved words
     return t
 
