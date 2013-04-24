@@ -5,13 +5,14 @@ from operator import itemgetter
 
 from lisp_lexer import lisp_lexer
 from lisp_parser import lisp_parser
-from lisp import Cons, consp, atom
+from lisp import Cons, Lambda, consp, atom
 
 
 # from pprint import pprint
 
-value = itemgetter(0)
-children = itemgetter(1)
+tag = itemgetter(0)
+value = itemgetter(1)
+children = itemgetter(2)
 
 
 class GraphExpr:
@@ -25,11 +26,17 @@ class GraphExpr:
             if uid in visited:
                 return visited[uid]
             internal = self.graph[uid]
-            if value(internal) is None:
+            if tag(internal) == '#cons':
                 id_car, id_cdr = children(internal)
                 obj = Cons(rec_build(id_car), rec_build(id_cdr))
-            else:
+            elif tag(internal) == '#lambda':
+                s = value(internal)
+                s = '(' + s[s.index(':') + 1:-1] + ')'
+                obj = lisp_parser.parse(s, lexer=lisp_lexer)[0].eval()
+            elif tag(internal) == '#atom':
                 obj = lisp_parser.parse(value(internal), lexer=lisp_lexer)[0] # bof
+            else:
+                raise RuntimeError('Unkown value in tree')
             visited[uid] = obj
             return obj
         return rec_build(self.root)
@@ -41,13 +48,17 @@ class GraphExpr:
             uid = id(obj)
             if uid not in visited:
                 if consp(obj):
-                    visited[uid] = None, [id(obj.car), id(obj.cdr)]
+                    visited[uid] = '#cons', None, [id(obj.car), id(obj.cdr)]
                     if id(obj.car) not in visited:
                         rec_build(obj.car)
                     if id(obj.cdr) not in visited:
                         rec_build(obj.cdr)
+                elif atom(obj):
+                    visited[uid] = '#atom', repr(obj), []
+                elif isinstance(obj, Lambda):
+                    visited[uid] = '#lambda', repr(obj)[1:], []
                 else:
-                    visited[uid] = repr(obj), []
+                    raise RuntimeError('Unkown value in expr')
             # print(uid) ; pprint(visited); input('continuer ?')
             return uid
         return GraphExpr(rec_build(obj), visited)
