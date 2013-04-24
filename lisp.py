@@ -119,28 +119,27 @@ def pop(o):
                     _to_list(*[Symbol('car'), o.car]),
                     _to_list(*[Symbol('setq'), o.car, _to_list(*[Symbol('cdr'), o.car])])])
 
-def make_func(cons, _):
-    params, corps = list(list_iterator(cons.car)), cons.cdr.car
+def make_func(params, body, namespace):
     def eval_user_func(obj, ns):
         args = list(list_iterator(obj))
         if len(params) != len(args):
             raise LispError("nombre d'arguments incorrect")
-        new_namespace = Namespace(ns)
+        new_ns = Namespace(namespace)
         for (k, v) in zip(params, args):
-            new_namespace[k.symbol] = v.eval(ns)
-        return corps.eval(new_namespace)
+            new_ns[k.symbol] = v.eval(ns)
+        return body.eval(new_ns)
     return eval_user_func
         
 
 def defun(cons, _):
     symbol = cons.car.symbol
-    _Fvals[symbol] = make_func(cons.cdr, _)
+    _Fvals[symbol] = make_func(list(list_iterator(cons.cdr.car)), cons.cdr.cdr.car, _)
     return cons.car
 
-def defmacro(cons, _):
+def defmacro(cons, namespace):
     symbol, params, corps = cons.car.symbol, cons.cdr.car, cons.cdr.cdr.car
     def eval_user_macro(obj, ns):
-        new_namespace = Namespace(ns)
+        new_namespace = Namespace(namespace)
         for (k, v) in zip(list_iterator(params), list_iterator(obj)):
             new_namespace[k.symbol] = v.eval(ns)
         return corps.eval(new_namespace).eval(ns)
@@ -174,6 +173,7 @@ def _div(a, b):
 
 
 # setf, eq, eql, char, length, let, cond, mapcar, apply, funcall...
+# il faut ajouter un objet #<function: body>, un objet caractère et leurs représentations
 builtins = {
     'car' : func_eval(lambda o: o.car),
     'cdr' : func_eval(lambda o: nil if nilp(o) else o.cdr),
@@ -209,7 +209,7 @@ builtins = {
 #no-total evaluating
     'defun' : defun,
     'defmacro' : defmacro,
-    'lambda' : make_func,
+    'lambda' : lambda o, ns: Lambda(o, ns),
     'if' : _if,
     'and' : _and,
     'or' : _or,
@@ -235,13 +235,13 @@ def get_fval(obj, ns):
 
 
 class Expr:
-    pass
-
-
-class Atom(Expr):
     def eval(self, namespace=None):
         "comportement par défaut : self-evaluating"
         return self
+
+
+class Atom(Expr):
+    pass
 
 
 class Symbol(Atom):
@@ -350,6 +350,20 @@ class Cons(Expr):
 class Quote(Cons):
     def __repr__(self):
         return "'" + repr(self.cdr.car)
+
+class Lambda(Expr):
+    def __init__(self, cons, namespace):
+        self._cons = cons
+        self.params = list(list_iterator(cons.car))
+        self.body = cons.cdr.car
+        self.namespace = namespace
+        self.func = make_func(self.params, self.body, self.namespace)
+    def __call__(self, args, namespace):
+        return self.func(args, namespace)
+    def __repr__(self):
+        return '#<function :lambda ' + repr(self._cons)[1:-1] + '>'
+        
+        
 
 
 # (setq lst '((A (D) B) (E (H G) . I) E F))
