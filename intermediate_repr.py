@@ -8,6 +8,7 @@ from lisp_parser import lisp_parser
 from lisp import Cons, Lambda, consp, atom
 
 
+
 # from pprint import pprint
 
 tag = itemgetter(0)
@@ -45,13 +46,13 @@ class GraphExpr:
     def from_lsp_obj(obj):
         visited = {}
         def rec_build(obj):
-            uid = id(obj)
+            uid = str(id(obj))
             if uid not in visited:
                 if consp(obj):
-                    visited[uid] = '#cons', None, [id(obj.car), id(obj.cdr)]
-                    if id(obj.car) not in visited:
+                    visited[uid] = '#cons', None, [str(id(obj.car)), str(id(obj.cdr))]
+                    if str(id(obj.car)) not in visited:
                         rec_build(obj.car)
-                    if id(obj.cdr) not in visited:
+                    if str(id(obj.cdr)) not in visited:
                         rec_build(obj.cdr)
                 elif atom(obj):
                     visited[uid] = '#atom', repr(obj), []
