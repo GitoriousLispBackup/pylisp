@@ -249,7 +249,7 @@ class Symbol(Atom):
     def __new__(cls, symbol):
         if symbol in Symbol.used:
             return Symbol.used[symbol]
-        return super(Symbol, cls).__new__(cls, symbol)
+        return super().__new__(cls)
     def __init__(self, symbol):
         assert(isinstance(symbol, str))
         if symbol in Symbol.used: return
