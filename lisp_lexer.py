@@ -6,15 +6,15 @@ import ply.lex as lex
 
 reserved = {
    'nil' : 'NIL',
+   'quote' : 'QUOTE',
 }
 
 # List of token names.
 tokens = [
     'SYMBOL',
     'INT',
-    'STRING',
-    'NIL'
-]
+    'STRING'
+] + list(reserved.values())
 
 literals = [ ',', '#', "'", '(', ')', '.' ]  # le point est bizarre en lisp
 
@@ -36,7 +36,7 @@ def t_STRING(t):
 
 def t_INT(t):
     r'\d+'
-    t.value = int(t.value)    
+    t.value = int(t.value)
     return t
 
 def t_SYMBOL(t):
