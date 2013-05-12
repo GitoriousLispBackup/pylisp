@@ -234,13 +234,13 @@ def get_fval(obj, ns):
 ###################################################
 
 
-class Expr:
+class Obj:
     def eval(self, namespace=None):
         "comportement par défaut : self-evaluating"
         return self
 
 
-class Atom(Expr):
+class Atom(Obj):
     pass
 
 
@@ -252,6 +252,7 @@ class Symbol(Atom):
         return super().__new__(cls)
     def __init__(self, symbol):
         assert(isinstance(symbol, str))
+        #~ print('__init__ invoqued for : ', symbol, Symbol.used)
         if symbol in Symbol.used: return
         Symbol.used[symbol] = self
         self.symbol = symbol
@@ -265,6 +266,8 @@ class Symbol(Atom):
         return val
     def __repr__(self):
         return self.symbol
+    #~ def __del__(self):
+        #~ print('__del__() invoqued')
 
 
 class Integer(Atom):
@@ -303,10 +306,10 @@ class _lst(list):
         self.ref = ref        
     
 
-class Cons(Expr):
+class Cons(Obj):
     def __init__(self, car, cdr):
-        assert(isinstance(car, Expr))
-        assert(isinstance(cdr, Expr))
+        assert(isinstance(car, Obj))
+        assert(isinstance(cdr, Obj))
         self.car = car
         self.cdr = cdr
     #@deco_dbg
@@ -348,10 +351,12 @@ class Cons(Expr):
 
 # special class for representation
 class Quote(Cons):
+    def __init__(self, expr):
+        super().__init__(Symbol('quote'), Cons(expr, nil))
     def __repr__(self):
         return "'" + repr(self.cdr.car)
 
-class Lambda(Expr):
+class Lambda(Obj):
     def __init__(self, cons, namespace):
         self._cons = cons
         self.params = list(list_iterator(cons.car))
