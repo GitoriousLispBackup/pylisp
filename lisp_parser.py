@@ -56,19 +56,21 @@ def p_atom(p):
 def p_quote(p):
     """
     quote : "'" expr
+          | '(' QUOTE expr ')'
     """
     #print('quote', p)
-    p[0] = Quote(Symbol('quote'), Cons(p[2], nil))
+    if len(p) == 3:
+        p[0] = Quote(p[2])
+    else:
+        p[0] = Quote(p[3])
 
 def p_list(p):
     """
     list : '(' seq ')'
          | '(' seq '.' expr ')'
     """
-    if len(p) >= 4:
-        #print('\t', list(reversed(p[2])))
-        p[0] = reduce(lambda x, y: Cons(y, x), reversed(p[2]), nil if len(p) == 4 else p[4])  ## bonne solution ?
-    #print('list, len(p) = ', len(p), p[0])
+    #print('list', p)
+    p[0] = reduce(lambda x, y: Cons(y, x), reversed(p[2]), nil if len(p) == 4 else p[4])  ## bonne solution ?
 
 
 def p_nil(p):

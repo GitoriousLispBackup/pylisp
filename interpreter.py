@@ -10,10 +10,13 @@ from intermediate_repr import *
 #~ except:
 from pprint import pprint as plot
 
+#~ import json
 
 for e in lisp_interpreter():
     print(e)
     G = GraphExpr.from_lsp_obj(e)
-    r, g = G.root, G.graph
-    plot((r, g))
+    #~ dmp =json.dumps(G, default=lambda obj: obj.__dict__, indent=2, separators=(',', ': '))
+    #~ tst = json.loads(dmp)
+    #~ G = GraphExpr(**tst)
+    plot((G.root, G.graph))
     print(G.to_lsp_obj())
