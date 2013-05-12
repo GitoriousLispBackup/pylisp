@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from functools import reduce
-from lisp_errors import LispError
 
+from lisp_errors import LispError
+from functools import reduce
+import operator
 
 class Namespace(dict):
-    def __init__(self, previous = None):
+    def __init__(self, previous=None):
         self.prev = previous if previous else {}
     def __getitem__(self, key):
         return super().__getitem__(key) if super().__contains__(key) else self.prev[key]
@@ -100,6 +101,7 @@ def rplacd(cons, o):
     cons.cdr = o
     return cons
 
+#TODO : reprendre ceci
 def funcall(sym, *args, namespace):
     return Cons(sym, _to_list(*args)).eval(namespace)
 
@@ -165,9 +167,9 @@ def _if(o, ns):
     a, b, c = list_iterator(o)
     return b.eval(ns) if not nilp(a.eval(ns)) else c.eval(ns)
 
-def _div(a, b):
+def _div(*l):
     try:
-        return Integer(a.nb // b.nb)
+        return Integer(reduce(operator.floordiv, [e.nb for e in l]))
     except ZeroDivisionError as err:
         raise LispError('division by zero')
 
@@ -192,9 +194,9 @@ builtins = {
     'rplacd' : func_eval(rplacd),
     'funcall' : func_eval_in_namespace(funcall),  ## hack : use in_namespace
 # arithmetic
-    '+' : func_eval(lambda a, b: Integer(a.nb + b.nb)),
-    '-' : func_eval(lambda a, b: Integer(a.nb - b.nb)),
-    '*' : func_eval(lambda a, b: Integer(a.nb * b.nb)),
+    '+' : func_eval(lambda *l: Integer(reduce(operator.add, [e.nb for e in l]))),
+    '-' : func_eval(lambda *l: Integer(reduce(operator.sub, [e.nb for e in l]))),
+    '*' : func_eval(lambda *l: Integer(reduce(operator.mul, [e.nb for e in l]))),
     '/' : func_eval(_div),
     '>' : func_eval(lambda a, b: t if a.nb > b.nb else nil),
     '<' : func_eval(lambda a, b: t if a.nb < b.nb else nil),
@@ -262,7 +264,17 @@ class Symbol(Atom):
         except KeyError:
             raise LispError('variable ' + self.symbol + ' has no value')
     def bind(self, val, namespace):
-        namespace[self.symbol] = val
+        def _get_real_env_for(ns, key):
+            if key not in ns:
+                return ns
+            else:
+                while isinstance(ns, Namespace):
+                    if super(Namespace, ns).__contains__(key):
+                        return ns
+                    ns = ns.prev
+                return ns
+        ns = _get_real_env_for(namespace, self.symbol)
+        ns[self.symbol] = val
         return val
     def __repr__(self):
         return self.symbol
