@@ -358,6 +358,8 @@ class Cons(Obj):
         _visited = {}
         def repr_aux(elt):
             if isinstance(elt, _lst):
+                if elt[0] == 'quote' and isinstance(elt[1], _lst):
+                    return "'" + repr_aux(elt[1][0])
                 p = '' if _visited[elt.ref] is None else _visited[elt.ref]
                 if dotted:
                     return p + '(' + repr_aux(elt[0]) + ' . ' + repr_aux(elt[1]) + ')'
@@ -377,13 +379,9 @@ class Cons(Obj):
         return repr_aux(lst)
 
     def dotted_repr(self):
-        if symbol(self.car) and self.car.symbol == 'quote':
-            return "'" + self.cdr.car.dotted_repr()
         return self._repr(True)
 
     def __repr__(self):
-        if symbol(self.car) and self.car.symbol == 'quote':
-            return "'" + repr(self.cdr.car)
         return self._repr()
 
 
