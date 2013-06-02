@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from lisp_errors import LispError
+from lisp_errors import LispError, lisp_assert
 from functools import reduce
 import operator
 
@@ -41,6 +41,8 @@ def symbol(obj):
 def listp(obj):
     return nilp(obj) or consp(obj)
 
+def integer(obj):
+    return isinstance(obj, Integer)
 
 ####################################################
 
@@ -64,15 +66,6 @@ def func_eval(func):
             raise LispError(repr(err))
     return _eval
 
-# hmmm...
-def func_eval_in_namespace(func):
-    def _eval(obj, ns):
-        try:
-            return func(*[arg.eval(ns) for arg in list_iterator(obj)], namespace=ns)
-        except TypeError as err:
-            raise LispError(repr(err))
-    return _eval
-
 def macro_eval(func):
     def _eval(obj, ns):
         try:
@@ -84,10 +77,6 @@ def macro_eval(func):
 
 
 ###################################################
-
-# lisp builtins functions
-def lsp_set(sym, val, namespace):
-    return sym.bind(val, namespace)
 
 def rplaca(cons, o):
     if not consp(cons):
@@ -149,6 +138,11 @@ def defmacro(cons, namespace):
     return cons.car
 
 
+def _set(o, ns):
+    def __set(sym, val):
+        return sym.eval(ns).bind(val.eval(ns), ns)
+    return __set(*list_iterator(o))
+
 #   /!\    WARNING   /!\
 # l'evaluation doit parfois se faire à l'interieur des fonction, et pas avant...
 # c'est absolument crucial, par ex. pour les conditions d'arrets lors d'une récursion
@@ -190,6 +184,19 @@ def _div(*l):
     except ZeroDivisionError as err:
         raise LispError('division by zero')
 
+def cmp_lst(op):
+    def _cmp(*args):
+        if len(args) == 2:
+            a, b = args
+            lisp_assert(integer(a), repr(a) + 'is not integer')
+            lisp_assert(integer(b), repr(b) + 'is not integer')
+            return t if op(a.nb, b.nb) else nil
+        elif len(args) > 2:
+            a, b, *rest = args
+            return nil if not op(a.nb, b.nb) else _cmp(b, *rest)
+        else:
+            raise LispError(' must have at least 2 arguments')
+    return _cmp
 
 # setf, eq, eql, char, length, let, cond, mapcar, apply, funcall...
 # il faut ajouter un objet #<function: body>, un objet caractère et leurs représentations
@@ -206,34 +213,33 @@ builtins = {
     'progn' : func_eval(lambda *lst: lst[-1]),
     'aref' : func_eval(lambda a, n: a.array[n.nb]),
     'eval' : func_eval(lambda o : o.eval()),
-    'set' : func_eval_in_namespace(lsp_set),  ## need namespace
     'rplaca' : func_eval(rplaca),
     'rplacd' : func_eval(rplacd),
-    'funcall' : func_eval_in_namespace(funcall),  ## hack : use in_namespace
+    # 'funcall' : func_eval(funcall),  ## hack : use in_namespace
 # arithmetic
     '+' : func_eval(lambda *l: Integer(reduce(operator.add, [e.nb for e in l]))),
     '-' : func_eval(lambda *l: Integer(reduce(operator.sub, [e.nb for e in l]))),
     '*' : func_eval(lambda *l: Integer(reduce(operator.mul, [e.nb for e in l]))),
     '/' : func_eval(_div),
-    '>' : func_eval(lambda a, b: t if a.nb > b.nb else nil),
-    '<' : func_eval(lambda a, b: t if a.nb < b.nb else nil),
-    '<=' : func_eval(lambda a, b: t if a.nb <= b.nb else nil),
-    '>=' : func_eval(lambda a, b: t if a.nb >= b.nb else nil),
-    '=' : func_eval(lambda a, b: t if a.nb == b.nb else nil),
-    '/=' : func_eval(lambda a, b: t if a.nb != b.nb else nil),
+    '>' : func_eval(cmp_lst(operator.gt)),
+    '<' : func_eval(cmp_lst(operator.lt)),
+    '<=' : func_eval(cmp_lst(operator.le)),
+    '>=' : func_eval(cmp_lst(operator.ge)),
+    '=' : func_eval(cmp_lst(operator.eq)),
+    '/=' : func_eval(lambda a, b: t if a.nb != b.nb else nil),  # plus difficile à implémenter sur une liste
 # macros
     'setq' : macro_eval(setq),
     'push' : macro_eval(push),
     'pop' : macro_eval(pop),
-#no-total evaluating
+# special forms
     'defun' : defun,
     'defmacro' : defmacro,
     'lambda' : lambda o, ns: Lambda(o, ns),
+    'set' : _set,   ## need namespace
     'if' : _if,
     'and' : _and,
     'or' : _or,
-#no-eval
-    'quote' : lambda o, _: o.car,
+    'quote' : lambda o, ns: o.car,
 }
 
 def get_fval(obj, ns):
