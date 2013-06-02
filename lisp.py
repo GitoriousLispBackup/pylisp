@@ -423,22 +423,6 @@ class Lambda(Obj):
 
     def __repr__(self):
         return '#<function :lambda ' + repr(self._cons)[1:-1] + '>'
-        
-
-# (setq lst '((A (D) B) (E (H G) . I) E F))
-# (rplacd (cdr (car (cdr (car (cdr lst))))) (car (cdr lst)))
-
-# (setq lst '(((G E (F) A I B D)) (E . H)))
-# (rplacd (cdr lst) (cdr (cdr (car (car lst)))))
-
-# (setq lst '(E ((A B F D) . D) (H G) (I)))
-# (rplacd (cdr (cdr (cdr lst))) (cdr lst))
-
-# (setq lst '(((F) E ((E) H I . G) (B . A) D)))
-# (rplacd (car (car (cdr (cdr (car lst))))) (cdr (cdr (car lst))))
-
-# (setq lst '(I ((A) F H B . D) (D (G)) E))
-# (rplacd (car (car (cdr lst))) (cdr (cdr (cdr (car (cdr lst))))))
 
 
 nil = Symbol('nil')
