@@ -243,8 +243,8 @@ class Obj:
 
 
 class Atom(Obj):
-    pass
-
+    def dotted_repr(self):
+        return repr(self)
 
 class Symbol(Atom):
     used = {}
@@ -254,8 +254,8 @@ class Symbol(Atom):
         return super().__new__(cls)
 
     def __init__(self, symbol):
-        assert(isinstance(symbol, str))
         #~ print('__init__ invoqued for : ', symbol, Symbol.used)
+        assert(isinstance(symbol, str))
         if symbol in Symbol.used: return
         Symbol.used[symbol] = self
         self.symbol = symbol
@@ -282,6 +282,7 @@ class Symbol(Atom):
 
     def __repr__(self):
         return self.symbol
+
     #~ def __del__(self):
         #~ print('__del__() invoqued')
 
