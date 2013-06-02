@@ -358,10 +358,10 @@ class Cons(Obj):
         _visited = {}
         def repr_aux(elt):
             if isinstance(elt, _lst):
+                p = '' if _visited[elt.ref] is None else _visited[elt.ref]
                 if dotted:
-                    return '(' + repr_aux(elt[0]) + ' . ' + repr_aux(elt[1]) + ')'
+                    return p + '(' + repr_aux(elt[0]) + ' . ' + repr_aux(elt[1]) + ')'
                 else:
-                    ret = '' if _visited[elt.ref] is None else _visited[elt.ref]
                     l = [repr_aux(elt[0])]
                     while True:
                         _, elt = elt
@@ -370,12 +370,16 @@ class Cons(Obj):
                         l.append(repr_aux(elt[0]))
                     if elt != 'nil':
                         l += ['.', repr_aux(elt)]
-                    ret += '(' + ' '.join(l) + ')'
-                return ret
-            else:
+                return p + '(' + ' '.join(l) + ')'
+            else:   # assume isinstance(elt, str)
                 return elt
         lst = self.get_repr_list(_visited)
         return repr_aux(lst)
+
+    def dotted_repr(self):
+        if symbol(self.car) and self.car.symbol == 'quote':
+            return "'" + self.cdr.car.dotted_repr()
+        return self._repr(True)
 
     def __repr__(self):
         if symbol(self.car) and self.car.symbol == 'quote':
