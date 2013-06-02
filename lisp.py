@@ -155,13 +155,30 @@ def defmacro(cons, namespace):
 # exemple : if, or...
 
 def _or(o, ns):
-    a, b = list_iterator(o)
-    a = a.eval(ns)
-    return a if not nilp(a) else b.eval(ns)
+    def __or(ls):
+        if len(ls) == 2:
+            a, b = ls
+            _a = a.eval(ns)
+            return _a if not nilp(_a) else b.eval(ns)
+        elif len(ls) > 2:
+            a, *_ls = ls
+            _a = a.eval(ns)
+            return _a if not nilp(_a) else __or(_ls)
+        else:
+            raise LispError('or must have at least 2 arguments')
+    return __or(list(list_iterator(o)))
 
 def _and(o, ns):
-    a, b = list_iterator(o)
-    return nil if nilp(a.eval(ns)) else b.eval(ns)
+    def __and(ls):
+        if len(ls) == 2:
+            a, b = ls
+            return nil if nilp(a.eval(ns)) else b.eval(ns)
+        elif len(ls) > 2:
+            a, *_ls = ls
+            return nil if nilp(a.eval(ns)) else __and(_ls)
+        else:
+            raise LispError('and must have at least 2 arguments')
+    return __and(list(list_iterator(o)))
 
 def _if(o, ns):
     a, b, c = list_iterator(o)
