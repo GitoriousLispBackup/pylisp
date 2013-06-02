@@ -5,8 +5,7 @@ import ply.lex as lex
 
 
 reserved = {
-   'nil' : 'NIL',
-   'quote' : 'QUOTE',
+   'nil' : 'NIL'
 }
 
 # List of token names.

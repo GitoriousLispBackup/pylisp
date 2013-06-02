@@ -56,13 +56,10 @@ def p_atom(p):
 def p_quote(p):
     """
     quote : "'" expr
-          | '(' QUOTE expr ')'
     """
     #print('quote', p)
-    if len(p) == 3:
-        p[0] = Quote(p[2])
-    else:
-        p[0] = Quote(p[3])
+    p[0] = Cons(Symbol('quote'), Cons(p[2], nil))
+
 
 def p_list(p):
     """
