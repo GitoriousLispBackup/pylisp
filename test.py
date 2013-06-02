@@ -79,6 +79,31 @@ progs = [
 ((lambda (a) ((lambda (b) (list a b)) (+ 2 a))) 1) ;; ok
 (((lambda (a) (lambda (b) (list a b))) 1) 2)  ;; ok
 (lambda (x) (+ 1 x))
+""",
+"""
+(setq lst '((A (D) B) (E (H G) . I) E F))
+(rplacd (cdr (car (cdr (car (cdr lst))))) (car (cdr lst)))
+lst
+""",
+"""
+(setq lst '(((G E (F) A I B D)) (E . H)))
+(rplacd (cdr lst) (cdr (cdr (car (car lst)))))
+lst
+""",
+"""
+(setq lst '(E ((A B F D) . D) (H G) (I)))
+(rplacd (cdr (cdr (cdr lst))) (cdr lst))
+lst
+""",
+"""
+(setq lst '(((F) E ((E) H I . G) (B . A) D)))
+(rplacd (car (car (cdr (cdr (car lst))))) (cdr (cdr (car lst))))
+lst
+""",
+"""
+(setq lst '(I ((A) F H B . D) (D (G)) E))
+(rplacd (car (car (cdr lst))) (cdr (cdr (cdr (car (cdr lst))))))
+lst
 """
 ]
 
@@ -98,4 +123,6 @@ for i, prgm in enumerate(progs):
             print(e.eval())
         except Exception as err:
             print('Error: ' + repr(err))
+            in_ = input('continue ?')
+            if 'n' in in_: raise err
             continue
