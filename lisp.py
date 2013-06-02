@@ -252,17 +252,20 @@ class Symbol(Atom):
         if symbol in Symbol.used:
             return Symbol.used[symbol]
         return super().__new__(cls)
+
     def __init__(self, symbol):
         assert(isinstance(symbol, str))
         #~ print('__init__ invoqued for : ', symbol, Symbol.used)
         if symbol in Symbol.used: return
         Symbol.used[symbol] = self
         self.symbol = symbol
+
     def eval(self, namespace=_Namespace):
         try:
             return namespace[self.symbol]
         except KeyError:
             raise LispError('variable ' + self.symbol + ' has no value')
+
     def bind(self, val, namespace):
         def _get_real_env_for(ns, key):
             if key not in ns:
@@ -276,6 +279,7 @@ class Symbol(Atom):
         ns = _get_real_env_for(namespace, self.symbol)
         ns[self.symbol] = val
         return val
+
     def __repr__(self):
         return self.symbol
     #~ def __del__(self):
@@ -286,6 +290,7 @@ class Integer(Atom):
     def __init__(self, nb):
         assert(isinstance(nb, int))
         self.nb = nb
+
     def __repr__(self):
         return repr(self.nb)
 
@@ -294,6 +299,7 @@ class Array(Atom):
     def __init__(self, seq):
         assert(isinstance(seq, list))
         self.array = seq
+
     def __repr__(self):
         return '#(' + ' '.join(repr(e) for e in self.array) + ')'
 
@@ -301,6 +307,7 @@ class String(Atom):
     def __init__(self, s):
         assert(isinstance(s, str))
         self.str = s
+
     def __repr__(self):
         return '"' + self.str + '"'
 
@@ -315,7 +322,7 @@ class String(Atom):
 class _lst(list):
     def __init__(self, ref, lst):
         super().__init__(lst)
-        self.ref = ref        
+        self.ref = ref
     
 
 class Cons(Obj):
@@ -324,6 +331,7 @@ class Cons(Obj):
         assert(isinstance(cdr, Obj))
         self.car = car
         self.cdr = cdr
+
     #@deco_dbg
     def eval(self, namespace=_Namespace):
         return get_fval(self.car, namespace)(self.cdr, namespace)
@@ -335,38 +343,46 @@ class Cons(Obj):
 
     def get_repr_list(self, visited):
         if self not in visited:
-            visited[self] = None  # tmp value
-            car = self.car if not consp(self.car) else self.car.get_repr_list(visited)
-            cdr = [self.cdr] if not consp(self.cdr) else self.cdr.get_repr_list(visited)
-            return _lst(self, [car] + cdr)
+            visited[self] = None  # default value if visited only once, otherwise temp value
+            car = repr(self.car) if not consp(self.car) else self.car.get_repr_list(visited)
+            cdr = repr(self.cdr) if not consp(self.cdr) else self.cdr.get_repr_list(visited)
+            return _lst(self, [car, cdr])
         else:
             if visited[self] is None:
-                nb = len([e for e in visited.values() if e is not None])
-                visited[self] = '#' + str(nb + 1)
-            return _lst(self, [visited[self]])
+                nb = sum([1 if e is not None else 0 for e in visited.values()])
+                mark = '#' + str(nb + 1)
+                visited[self] = mark + '='
+            return mark + '#'
             
-    def __repr__(self):
-        visited = {}
+    def _repr(self, dotted=False):
+        _visited = {}
         def repr_aux(elt):
             if isinstance(elt, _lst):
-                ret = '(' + ' '.join(repr_aux(e) for e in elt[:-1]) + ('' if elt[-1] is nil else ' . ' + repr_aux(elt[-1])) + ')'
-                if visited[elt.ref] is not None:
-                    ret = visited[elt.ref] + '=' + ret
+                if dotted:
+                    return '(' + repr_aux(elt[0]) + ' . ' + repr_aux(elt[1]) + ')'
+                else:
+                    ret = '' if _visited[elt.ref] is None else _visited[elt.ref]
+                    l = [repr_aux(elt[0])]
+                    while True:
+                        _, elt = elt
+                        if not isinstance(elt, _lst) or _visited[elt.ref] is not None:
+                            break
+                        l.append(repr_aux(elt[0]))
+                    if elt != 'nil':
+                        l += ['.', repr_aux(elt)]
+                    ret += '(' + ' '.join(l) + ')'
                 return ret
-            elif isinstance(elt, str):
-                return elt + '#'
             else:
-                return repr(elt)
-        lst = self.get_repr_list(visited)
+                return elt
+        lst = self.get_repr_list(_visited)
         return repr_aux(lst)
 
-
-# special class for representation
-class Quote(Cons):
-    def __init__(self, expr):
-        super().__init__(Symbol('quote'), Cons(expr, nil))
     def __repr__(self):
-        return "'" + repr(self.cdr.car)
+        if symbol(self.car) and self.car.symbol == 'quote':
+            return "'" + repr(self.cdr.car)
+        return self._repr()
+
+
 
 class Lambda(Obj):
     def __init__(self, cons, namespace):
@@ -375,13 +391,13 @@ class Lambda(Obj):
         self.body = cons.cdr.car
         self.namespace = namespace
         self.func = make_func(self.params, self.body, self.namespace)
+
     def __call__(self, args, namespace):
         return self.func(args, namespace)
+
     def __repr__(self):
         return '#<function :lambda ' + repr(self._cons)[1:-1] + '>'
         
-        
-
 
 # (setq lst '((A (D) B) (E (H G) . I) E F))
 # (rplacd (cdr (car (cdr (car (cdr lst))))) (car (cdr lst)))
