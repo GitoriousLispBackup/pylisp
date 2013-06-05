@@ -215,6 +215,8 @@ builtins = {
     'eval' : func_eval(lambda o : o.eval()),
     'rplaca' : func_eval(rplaca),
     'rplacd' : func_eval(rplacd),
+    'equal' : func_eval(lambda a, b: t if a.equal(b) else nil),
+    'eq' : func_eval(lambda a, b: t if a is b else nil),
     # 'funcall' : func_eval(funcall),  ## hack : use in_namespace
 # arithmetic
     '+' : func_eval(lambda *l: Integer(reduce(operator.add, [e.nb for e in l]))),
@@ -269,6 +271,7 @@ class Atom(Obj):
     def dotted_repr(self):
         return repr(self)
 
+
 class Symbol(Atom):
     used = {}
     def __new__(cls, symbol):
@@ -282,6 +285,9 @@ class Symbol(Atom):
         if symbol in Symbol.used: return
         Symbol.used[symbol] = self
         self.symbol = symbol
+        
+    def equal(self, other):
+        return isinstance(other, Symbol) and self.symbol == other.symbol
 
     def eval(self, namespace=_Namespace):
         try:
@@ -315,6 +321,9 @@ class Integer(Atom):
         assert(isinstance(nb, int))
         self.nb = nb
 
+    def equal(self, other):
+        return isinstance(other, Integer) and self.nb == other.nb
+
     def __repr__(self):
         return repr(self.nb)
 
@@ -324,6 +333,9 @@ class Array(Atom):
         assert(isinstance(seq, list))
         self.array = seq
 
+    def equal(self, other):
+        return self is eq
+
     def __repr__(self):
         return '#(' + ' '.join(repr(e) for e in self.array) + ')'
 
@@ -331,6 +343,9 @@ class String(Atom):
     def __init__(self, s):
         assert(isinstance(s, str))
         self.str = s
+
+    def equal(self, other):
+        return isinstance(other, String) and self.str == other.str
 
     def __repr__(self):
         return '"' + self.str + '"'
@@ -359,6 +374,9 @@ class Cons(Obj):
     #@deco_dbg
     def eval(self, namespace=_Namespace):
         return get_fval(self.car, namespace)(self.cdr, namespace)
+    
+    def equal(self, other):
+        return isinstance(other, Cons) and self.car.equal(other.car) and self.cdr.equal(other.cdr)
 
     # TODO : il faudrait gérer les listes circulaires
     def to_list(self):
